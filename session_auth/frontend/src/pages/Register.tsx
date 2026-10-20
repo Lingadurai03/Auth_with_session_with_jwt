@@ -1,5 +1,6 @@
 import React, { useId, useState } from "react";
 import { Link } from "react-router-dom";
+import Button from "../components/Button";
 
 interface FormErrors {
   name?: string;
@@ -33,7 +34,6 @@ function Register() {
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalError, setGlobalError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -90,13 +90,10 @@ function Register() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
     if (validate()) {
       alert("Account created successfully!");
-      setIsSubmitting(false);
     } else {
-      setIsSubmitting(false);
     }
   };
 
@@ -283,14 +280,7 @@ function Register() {
         </div>
 
         {/* 6. Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          aria-busy={isSubmitting}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 transition-colors"
-        >
-          {isSubmitting ? "Creating Account..." : "Create Account"}
-        </button>
+        <Button type="submit" title="Submit" />
         <p>
           Already have an account?{" "}
           <Link to={"/login"} className="text-blue-500">

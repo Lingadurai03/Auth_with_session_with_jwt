@@ -1,5 +1,6 @@
 import React, { useId, useState } from "react";
 import { Link } from "react-router-dom";
+import Button from "../components/Button";
 
 function Login() {
   // Generates unique, stable IDs for SSR and a11y linking
@@ -15,11 +16,9 @@ function Login() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
     const newErrors: { email?: string; password?: string } = {};
 
@@ -40,8 +39,6 @@ function Login() {
     if (Object.keys(newErrors).length === 0) {
       alert("Form submitted successfully!");
     }
-
-    setIsSubmitting(false);
   };
 
   const hasErrors = Boolean(errors.email || errors.password);
@@ -160,14 +157,8 @@ function Login() {
         </div>
 
         {/* 4. Accessible Submit Button */}
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          aria-busy={isSubmitting}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
-        >
-          {isSubmitting ? "Signing In..." : "Sign In"}
-        </button>
+        <Button type="submit" title="Submit" />
+
         <p>
           Don't have an account?{" "}
           <Link to={"/register"} className="text-blue-500">

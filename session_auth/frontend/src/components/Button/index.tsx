@@ -1,17 +1,20 @@
 import React from "react";
 
 interface ButtonProps {
+  type: React.ButtonHTMLAttributes<HTMLButtonElement>["type"];
   title: string;
   isLoading?: boolean;
   onClick?: () => void;
 }
 
-function Button({ title, isLoading, onClick }: ButtonProps) {
+function Button({ type, title, isLoading, onClick }: ButtonProps) {
   return (
     <button
       onClick={onClick}
+      type={type}
+      aria-busy={isLoading}
       disabled={isLoading}
-      className="px-5 py-2 text-white hover:cursor-pointer disabled:hover:cursor-not-allowed outline-none border-none bg-teal-700 rounded-xl disabled:bg-teal-900"
+      className="px-5 py-2 text-white font-semibold hover:cursor-pointer disabled:hover:cursor-not-allowed outline-none border-none bg-blue-600 rounded-xl disabled:bg-blue-900"
     >
       {isLoading ? (
         <div role="status">
