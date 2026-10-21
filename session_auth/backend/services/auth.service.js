@@ -21,7 +21,7 @@ export const register = async (user) => {
 
   await userRepo.save(newUser);
 
-  const { password_hash: _, ...userWithoutPassword } = newUser;
+  const { passwordHash: _, ...userWithoutPassword } = newUser;
   return userWithoutPassword;
 };
 
@@ -42,8 +42,41 @@ export const login = async (loginDetails) => {
   const { passwordHash: _, ...userWithoutPassword } = user;
   return userWithoutPassword;
 };
+export const getMe = async (userId) => {
+  const user = await findUserById(userId);
+
+  if (!user) {
+    return null;
+  }
+
+  const { passwordHash: _, ...userWithoutPassword } = user;
+  return userWithoutPassword;
+};
+
+export const updateMe = async (userId, userData) => {
+  const userRepo = AppDataSource.getRepository(User);
+
+  const updateData = {};
+
+  if (userData.fullName !== undefined) {
+    updateData.fullName = userData.fullName;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return false;
+  }
+
+  const result = await userRepo.update({ id: userId }, updateData);
+
+  return result.affected > 0;
+};
 
 const findUser = (email) => {
   const userRepo = AppDataSource.getRepository(User);
   return userRepo.findOneBy({ email });
+};
+const findUserById = (userId) => {
+  const userRepo = AppDataSource.getRepository(User);
+
+  return userRepo.findOneBy({ id: userId });
 };

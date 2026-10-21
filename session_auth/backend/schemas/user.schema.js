@@ -14,3 +14,9 @@ export const loginUserSchema = z.object({
     password: z.string().min(8),
   }),
 });
+
+export const udpateUserData = z.object({
+  body: z.object({
+    fullName: z.string().trim().min(3).optional(),
+  }),
+});
