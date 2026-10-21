@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "migration:generate": "typeorm migration:generate",
+    "migration:generate": "typeorm migration:generate -d ./config/data-source.js -o",
     "migration:run": "typeorm migration:run -d ./config/data-source.js",
     "migration:revert": "typeorm migration:revert -d ./config/data-source.js"
   },

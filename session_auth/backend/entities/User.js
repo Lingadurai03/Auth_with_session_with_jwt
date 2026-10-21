@@ -42,4 +42,12 @@ export const User = new EntitySchema({
       nullable: true,
     },
   },
+
+  relations: {
+    documents: {
+      type: "one-to-many",
+      target: "Document",
+      inverseSide: "user",
+    },
+  },
 });
