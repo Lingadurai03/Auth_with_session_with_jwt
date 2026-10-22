@@ -9,10 +9,14 @@ export const validateRequest = (schema) => {
         params: req.params,
       });
 
-      req.body = parsed.body;
-      req.params = parsed.params;
+      if (parsed.body !== undefined) {
+        req.body = parsed.body;
+      }
+      if (parsed.params !== undefined) {
+        req.params = parsed.params;
+      }
 
-      if (req.query) {
+      if (parsed.query !== undefined && req.query) {
         for (const key in req.query) {
           delete req.query[key];
         }

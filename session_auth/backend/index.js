@@ -4,6 +4,7 @@ import { AppDataSource } from "./config/data-source.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import authRouter from "./routes/auth.route.js";
 import { sessionMiddleWare } from "./config/session.js";
+import documentRouter from "./routes/documents.route.js";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -11,6 +12,7 @@ const PORT = Number(process.env.PORT) || 5000;
 app.use(express.json());
 app.use(sessionMiddleWare);
 app.use("/auth", authRouter);
+app.use("/document", documentRouter);
 
 //Error middlewere
 app.use(errorMiddleware);
