@@ -20,11 +20,17 @@ export const User = new EntitySchema({
       length: 255,
       nullable: false,
     },
+    role: {
+      type: "enum",
+      enum: ["admin", "user"],
+      default: "user",
+    },
     passwordHash: {
       name: "password_hash",
       type: "varchar",
       length: 255,
       nullable: false,
+      select: false,
     },
     createdAt: {
       name: "created_at",

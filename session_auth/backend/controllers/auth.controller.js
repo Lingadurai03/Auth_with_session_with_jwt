@@ -86,6 +86,15 @@ export const updateMe = async (req, res, next) => {
   }
 };
 
+export const getAllUser = async (req, res, next) => {
+  try {
+    const users = await authService.getAllUser();
+    return res.status(200).json(users);
+  } catch (e) {
+    return next(e);
+  }
+};
+
 export const logout = async (req, res, next) => {
   req.session.destroy((e) => {
     if (e) {

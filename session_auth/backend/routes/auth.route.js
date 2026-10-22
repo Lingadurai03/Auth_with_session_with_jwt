@@ -7,6 +7,7 @@ import {
   getCsrfToken,
   validateCsrfToken,
 } from "../middlewares/csrf.middleware.js";
+import { requireRole } from "../middlewares/requireRole.middleware.js";
 
 const authRouter = Router();
 
@@ -40,5 +41,11 @@ authRouter.post(
   authController.logout,
 );
 authRouter.get("/csrf-token", getCsrfToken);
+authRouter.get(
+  "/all",
+  requireAuth,
+  requireRole("admin"),
+  authController.getAllUser,
+);
 
 export default authRouter;

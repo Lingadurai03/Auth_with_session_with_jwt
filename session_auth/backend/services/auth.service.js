@@ -49,8 +49,7 @@ export const getMe = async (userId) => {
     return null;
   }
 
-  const { passwordHash: _, ...userWithoutPassword } = user;
-  return userWithoutPassword;
+  return user;
 };
 
 export const updateMe = async (userId, userData) => {
@@ -71,9 +70,20 @@ export const updateMe = async (userId, userData) => {
   return result.affected > 0;
 };
 
+export const getAllUser = () => {
+  const userRepo = AppDataSource.getRepository(User);
+
+  return userRepo.find();
+};
+
 const findUser = (email) => {
   const userRepo = AppDataSource.getRepository(User);
-  return userRepo.findOneBy({ email });
+
+  return userRepo
+    .createQueryBuilder("user")
+    .addSelect("user.passwordHash")
+    .where("user.email = :email", { email })
+    .getOne();
 };
 const findUserById = (userId) => {
   const userRepo = AppDataSource.getRepository(User);
