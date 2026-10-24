@@ -5,7 +5,7 @@ import "dotenv/config";
 
 const PgSession = connectPgSimple(session);
 
-const pgPool = new pg.Pool({
+export const pgPool = new pg.Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT || 5432),
   user: process.env.DB_USER,

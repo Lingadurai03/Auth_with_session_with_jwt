@@ -107,3 +107,25 @@ export const logout = async (req, res, next) => {
     });
   });
 };
+
+export const deactivateUser = async (req, res, next) => {
+  try {
+    const targetUserId = req.params.id;
+    const actorId = req.user.id;
+
+    if (targetUserId === actorId) {
+      const error = new Error("You cannot deactivate your own account");
+      error.statusCode = 403;
+      throw error;
+    }
+
+    const result = await authService.deactivateUser(targetUserId);
+
+    return res.status(200).json({
+      message: "User deactivated successfully",
+      data: result,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};

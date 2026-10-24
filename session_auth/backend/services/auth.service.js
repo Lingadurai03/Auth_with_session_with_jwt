@@ -1,4 +1,5 @@
 import { AppDataSource } from "../config/data-source.js";
+import { pgPool } from "../config/session.js";
 import { User } from "../entities/User.js";
 import bcrypt from "bcrypt";
 
@@ -33,6 +34,15 @@ export const login = async (loginDetails) => {
     error.statusCode = 404;
     throw error;
   }
+
+  if (user.disabledAt) {
+    const error = new Error(
+      "Your account is disabled. Please contact an administrator.",
+    );
+    error.statusCode = 403;
+    throw error;
+  }
+
   const isMatch = await bcrypt.compare(password, user.passwordHash);
   if (!isMatch) {
     const error = new Error("Invalid credentials");
@@ -85,8 +95,40 @@ const findUser = (email) => {
     .where("user.email = :email", { email })
     .getOne();
 };
-const findUserById = (userId) => {
+export const findUserById = (userId) => {
   const userRepo = AppDataSource.getRepository(User);
 
   return userRepo.findOneBy({ id: userId });
+};
+
+export const deactivateUser = async (userId) => {
+  return AppDataSource.transaction(async (manager) => {
+    // 1. Disable the account.
+    const userResult = await manager
+      .createQueryBuilder()
+      .update(User)
+      .set({ disabledAt: () => "NOW()" })
+      .where("id = :userId", { userId })
+      .returning(["id"])
+      .execute();
+
+    if (userResult.affected === 0) {
+      const error = new Error("User not found");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // 2. Revoke all sessions belonging to this user.
+    const sessionResult = await manager.query(
+      `DELETE FROM "session"
+       WHERE sess ->> 'userId' = $1`,
+      [String(userId)],
+    );
+
+    // 3. TypeORM commits automatically if the callback succeeds.
+    return {
+      userId: userResult.raw[0].id,
+      sessionsRevoked: sessionResult.length,
+    };
+  });
 };

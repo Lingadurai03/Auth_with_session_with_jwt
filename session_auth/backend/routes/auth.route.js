@@ -41,11 +41,22 @@ authRouter.post(
   authController.logout,
 );
 authRouter.get("/csrf-token", getCsrfToken);
+
+//admin
+
 authRouter.get(
   "/all",
   requireAuth,
   requireRole("admin"),
   authController.getAllUser,
+);
+
+authRouter.patch(
+  "/user/:id/deactivate",
+  requireAuth,
+  validateCsrfToken,
+  requireRole("admin"),
+  authController.deactivateUser,
 );
 
 export default authRouter;
