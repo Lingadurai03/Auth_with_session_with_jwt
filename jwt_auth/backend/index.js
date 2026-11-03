@@ -2,10 +2,13 @@ import express from "express";
 import "dotenv/config";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { pgPool } from "./config/db_config.js";
+import authRouter from "./routes/auth.route.js";
 
 const app = express();
 
 app.use(express.json());
+
+app.use("/auth", authRouter);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({
