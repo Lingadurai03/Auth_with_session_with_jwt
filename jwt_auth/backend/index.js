@@ -3,10 +3,12 @@ import "dotenv/config";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { pgPool } from "./config/db_config.js";
 import authRouter from "./routes/auth.route.js";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/auth", authRouter);
 

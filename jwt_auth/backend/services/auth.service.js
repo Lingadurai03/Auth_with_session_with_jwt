@@ -1,5 +1,8 @@
 import { pgPool } from "../config/db_config.js";
 import { compare, hash } from "bcrypt";
+import { randomUUID, randomBytes, createHash } from "crypto";
+import jwt from "jsonwebtoken";
+import { privateKey } from "../utils/getKeys.js";
 
 export const register = async (userData) => {
   const { email, password, fullName } = userData;
@@ -33,7 +36,7 @@ export const register = async (userData) => {
 
 export const login = async (userData) => {
   const { email, password } = userData;
-  const user = await getUserWithPasswordHash(email.toLowerCase());
+  const user = await getUserWithPasswordHash(email.toLowerCase().trim());
   if (!user) {
     const error = new Error("Invalid credentials");
     error.statusCode = 401;
@@ -53,7 +56,84 @@ export const login = async (userData) => {
     error.statusCode = 401;
     throw error;
   }
-  return safeUser;
+
+  const createdAt = new Date();
+  const accessTokenPayload = {
+    sub: safeUser.id,
+    role: safeUser.role,
+    jti: randomUUID(),
+  };
+
+  const accessToken = generateAccessToken(accessTokenPayload);
+  const refreshToken = generateRefreshToken();
+  const hashedRefreshToken = hashRefreshToken(refreshToken);
+
+  await addRefreshTokenOnDB(safeUser.id, hashedRefreshToken, createdAt);
+  return { ...safeUser, accessToken, refreshToken };
+};
+
+export const refreshToken = async (refreshToken) => {
+  const client = await pgPool.connect();
+  let isTransactionStarted = false;
+  try {
+    await client.query("BEGIN");
+    isTransactionStarted = true;
+    const query = `
+        SELECT 
+        r.id AS "refreshSessionId",
+        u.id AS "userId",
+        u.email,
+        u.role,
+        u.full_name AS "fullName"
+        FROM refresh_token_sessions r 
+        INNER JOIN 
+        users u on u.id = r.user_id
+        WHERE 
+        r.token_hash = $1 
+        AND r.expires_at > NOW()
+        AND r.revoked_at IS NULL
+        AND u.disabled_at IS NULL
+        FOR UPDATE OF r
+  `;
+
+    const oldHashedRefreshtoken = hashRefreshToken(refreshToken);
+    const { rows } = await client.query(query, [oldHashedRefreshtoken]);
+    const result = rows[0];
+
+    if (!result) {
+      const error = new Error("Session not found");
+      error.statusCode = 401;
+      throw error;
+    }
+    const accessTokenPayload = {
+      sub: result.userId,
+      role: result.role,
+      jti: randomUUID(),
+    };
+    const newAccessToken = generateAccessToken(accessTokenPayload);
+    const newRefreshToken = generateRefreshToken();
+    const hashedRefreshToken = hashRefreshToken(newRefreshToken);
+
+    await updateRefreshToken(
+      hashedRefreshToken,
+      result.refreshSessionId,
+      client,
+    );
+    await client.query("COMMIT");
+    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+  } catch (error) {
+    if (isTransactionStarted) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackError) {
+        console.error("Rollback failed:", rollbackError);
+      }
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 const checkUserExist = async (email) => {
@@ -67,4 +147,49 @@ const getUserWithPasswordHash = async (email) => {
     "SELECT id, full_name, email, role, password_hash, disabled_at FROM users WHERE email = $1";
   const user = await pgPool.query(query, [email]);
   return user.rows[0];
+};
+
+const addRefreshTokenOnDB = async (userId, token, createdAt) => {
+  const query =
+    "INSERT INTO refresh_token_sessions(user_id, token_hash, expires_at) values($1, $2, $3)";
+
+  const expireAt = new Date(createdAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return pgPool.query(query, [userId, token, expireAt]);
+};
+
+const updateRefreshToken = async (tokenHash, refreshSessionId, client) => {
+  const query = `
+    UPDATE 
+    refresh_token_sessions
+    set
+    token_hash = $1, 
+    expires_at= NOW() + INTERVAL '7 days', 
+    last_used_at= NOW()
+    WHERE
+    id = $2 
+    AND revoked_at IS NULL
+    AND expires_at > NOW()
+    RETURNING id, user_id AS "userId", expires_at AS "expiresAt";
+  `;
+  const result = await client.query(query, [tokenHash, refreshSessionId]);
+  if (result.rowCount === 0) {
+    const error = new Error("Session is invalid, expired or revoked");
+    error.statusCode = 401;
+    throw error;
+  }
+  return result.rows[0];
+};
+
+const generateAccessToken = (payload) => {
+  return jwt.sign(payload, privateKey, {
+    algorithm: "RS256",
+    expiresIn: "15m",
+    issuer: "auth_server",
+  });
+};
+const generateRefreshToken = () => {
+  return randomBytes(32).toString("hex");
+};
+const hashRefreshToken = (token) => {
+  return createHash("sha256").update(token).digest("hex");
 };
