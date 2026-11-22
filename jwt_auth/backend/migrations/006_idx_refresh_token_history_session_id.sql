@@ -1,0 +1,2 @@
+CREATE INDEX idx_refresh_token_history_session_id
+ON refresh_token_history(session_id);

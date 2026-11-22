@@ -101,6 +101,25 @@ export const refreshToken = async (refreshToken) => {
     const result = rows[0];
 
     if (!result) {
+      const historicalToken = await findHistoricalTokenSession(
+        client,
+        oldHashedRefreshtoken,
+      );
+
+      // Finish the original transaction first.
+      await client.query("ROLLBACK");
+      isTransactionStarted = false;
+
+      if (historicalToken) {
+        await revokeSession(historicalToken.sessionId);
+
+        const error = new Error(
+          "Refresh token reuse detected. Session revoked.",
+        );
+        error.statusCode = 401;
+        throw error;
+      }
+
       const error = new Error("Session not found");
       error.statusCode = 401;
       throw error;
@@ -110,6 +129,11 @@ export const refreshToken = async (refreshToken) => {
       role: result.role,
       jti: randomUUID(),
     };
+    await storeOldHashOnHistory(
+      client,
+      result.refreshSessionId,
+      oldHashedRefreshtoken,
+    );
     const newAccessToken = generateAccessToken(accessTokenPayload);
     const newRefreshToken = generateRefreshToken();
     const hashedRefreshToken = hashRefreshToken(newRefreshToken);
@@ -178,6 +202,77 @@ const updateRefreshToken = async (tokenHash, refreshSessionId, client) => {
     throw error;
   }
   return result.rows[0];
+};
+
+const findHistoricalTokenSession = async (client, tokenHash) => {
+  const query = `
+    SELECT
+      h.session_id AS "sessionId"
+    FROM refresh_token_history h
+    INNER JOIN refresh_token_sessions s
+      ON s.id = h.session_id
+    WHERE h.token_hash = $1
+    FOR UPDATE OF s
+  `;
+
+  const { rows } = await client.query(query, [tokenHash]);
+
+  return rows[0] || null;
+};
+
+const revokeSession = async (sessionId) => {
+  const client = await pgPool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const { rows } = await client.query(
+      `
+        SELECT id, revoked_at, expires_at
+        FROM refresh_token_sessions
+        WHERE id = $1
+        FOR UPDATE
+      `,
+      [sessionId],
+    );
+
+    const session = rows[0];
+
+    if (!session || session.revoked_at || session.expires_at <= new Date()) {
+      await client.query("COMMIT");
+      return false;
+    }
+
+    await client.query(
+      `
+        UPDATE refresh_token_sessions
+        SET revoked_at = NOW()
+        WHERE id = $1
+      `,
+      [sessionId],
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Revocation rollback failed:", rollbackError);
+    }
+
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+const storeOldHashOnHistory = async (client, sessionId, token) => {
+  const query = `
+    INSERT INTO refresh_token_history(token_hash,session_id, revoked_at)
+    VALUES($1, $2, NOW())
+   `;
+  return client.query(query, [token, sessionId]);
 };
 
 const generateAccessToken = (payload) => {
